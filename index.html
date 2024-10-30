@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
+    <title>Diwali Scratch Card with Google Authentication</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #f39c12, #d35400);
+            color: #ffffff;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #eaff00;
+            margin: 0.5rem 0 1rem 0;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .welcome-message {
+            font-size: 1.8rem;
+            color: #ffd700;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .google-signin-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .google-signin-highlight {
+            outline: 2px solid #ff4500; /* Red outline */
+            outline-offset: 2px; /* Offset for better visibility */
+            transition: outline 0.3s; /* Smooth transition */
+        }
+
+        .scratch-card-container {
+            position: relative;
+            width: 320px;
+            height: 180px;
+            border-radius: 15px;
+            overflow: hidden;
+            user-select: none;
+            touch-action: none;
+            box-shadow: 0px 12px 20px rgba(0, 0, 0, 0.3);
+            background-color: #ffffff;
+      
+            animation: pulse 1.5s infinite; /* Apply the pulse animation */
+        }
+
+        .hidden-message {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff4500;
+            z-index: 1;
+          
+            border-radius: 15px;
+            text-shadow: 2px 2px 8px rgba(255, 140, 0, 0.8);
+        }
+
+        .scratch-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            cursor: pointer;
+            border-radius: 15px;
+        }
+    </style>
+</head>
+<body onload="showPopup()">
+    <div class="welcome-message" id="welcomeMessage">Welcome, Guest!</div>
+    <h1>✨ Happy Diwali! ✨</h1>
+
+    <div class="google-signin-container">
+        <div id="g_id_onload"
+             data-client_id="287464842093-ggg3ii9k7a0f8ujt3vibsbe3ma3vd3ut.apps.googleusercontent.com"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin" data-type="standard"></div>
+    </div>
+
+    <script>
+        function showPopup() {
+            alert("This page was developed by Aniket Dobriyal. No copyright concerns.");
+        }
+    </script>
+
+    <div class="scratch-card-container">
+        <div class="hidden-message" id="diwaliMessage">✨ Happy Diwali! ✨</div>
+        <canvas class="scratch-layer" id="scratchCanvas"></canvas>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        const canvas = document.getElementById('scratchCanvas');
+        const ctx = canvas.getContext('2d');
+        let isScratching = false;
+        let userName = "Guest"; // Default name
+        let shayariDisplayed = false; // Track if a shayari has been displayed
+        let isAuthenticated = false; // Track authentication status
+        const googleSignInButton = document.querySelector('.g_id_signin');
+
+        // Diwali shayari options
+        const shayaris = [
+            "Diye ki roshni se jagmagaye aangan, [Name] ka ho khushiyon se bhara jeevan. Happy Diwali!",
+            "Deep jalte rahe, [Name] ka mann muskuraye. Sukh aur safalta ki ho barish, Happy Diwali!",
+            "Kumkum ke rang se saja ho sansar, [Name] ke ghar aaye khushiyon ka tyohar. Diwali Mubarak!",
+            "Diwali ke diye aur patakho ka shor, [Name] ka aangan ho khushiyon se bhara aur pyar se ghara.",
+            "Roshni ho har gali aur angan mein, [Name] ke jeevan me aaye pyaar aur samman. Happy Diwali!",
+            "Diwali ki roshni se roshan ho duniya aapki, [Name] ke har pal mein ho khushiyon ki baarish. Happy Diwali!"
+        ];
+
+        // Load the image
+        const scratchImage = new Image();
+        scratchImage.src = 'photo_2020-08-17_11-15-02-419x420.jpg'; // Make sure the path is correct
+
+        // When the image is loaded, draw it on the canvas
+        scratchImage.onload = function() {
+            ctx.drawImage(scratchImage, 0, 0, canvas.width, canvas.height);
+        };
+
+        // Set canvas size to match container
+        canvas.width = canvas.parentElement.offsetWidth;
+        canvas.height = canvas.parentElement.offsetHeight;
+
+        // Scratch effect
+        function scratch(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+            const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Function to enable scratch events
+        function enableScratchEvents() {
+            canvas.addEventListener('mousedown', () => {
+                if (!isAuthenticated) {
+                    scratchAttempt(); // Try to scratch
+                } else {
+                    isScratching = true;
+                }
+            });
+            canvas.addEventListener('mousemove', (e) => isScratching && scratch(e));
+            canvas.addEventListener('mouseup', () => {
+                isScratching = false;
+                if (isAuthenticated && !shayariDisplayed) {
+                    revealShayari();
+                }
+            });
+            canvas.addEventListener('mouseleave', () => (isScratching = false));
+            canvas.addEventListener('touchstart', (e) => {
+                if (!isAuthenticated) {
+                    scratchAttempt(); // Try to scratch
+                } else {
+                    isScratching = true;
+                    scratch(e);
+                }
+            });
+            canvas.addEventListener('touchmove', (e) => {
+                if (isScratching) scratch(e);
+                e.preventDefault();
+            });
+            canvas.addEventListener('touchend', () => {
+                isScratching = false;
+                if (isAuthenticated && !shayariDisplayed) {
+                    revealShayari();
+                }
+            });
+        }
+
+        // Reveal the shayari
+        function revealShayari() {
+            const randomShayari = shayaris[Math.floor(Math.random() * shayaris.length)];
+            const message = randomShayari.replace('[Name]', userName);
+            document.getElementById('diwaliMessage').textContent = message;
+            shayariDisplayed = true; // Mark as displayed
+        }
+
+        // Handle Google sign-in response
+        function handleCredentialResponse(response) {
+            const user = jwt_decode(response.credential);
+            userName = user.name; // Get user name from Google account
+            document.getElementById('welcomeMessage').textContent = `Welcome, ${userName}!`;
+            isAuthenticated = true; // Set authentication status to true
+            googleSignInButton.classList.remove('google-signin-highlight'); // Remove highlight if authenticated
+            enableScratchEvents(); // Enable scratch events after authentication
+        }
+
+        // Highlight the sign-in button if user tries to scratch without authentication
+        function scratchAttempt() {
+            googleSignInButton.classList.add('google-signin-highlight');
+            setTimeout(() => {
+                googleSignInButton.classList.remove('google-signin-highlight');
+            }, 2000); // Remove highlight after 2 seconds
+        }
+    </script>
+</body>
+</html>
